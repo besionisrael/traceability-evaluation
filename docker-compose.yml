@@ -1,0 +1,104 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Distributed Traceability Evaluation
+#
+# Services:
+#   resource_r1, resource_r2, resource_r3  — one TCP resource node per resource
+#   coordinator                             — M_D global coordinator
+#   orchestrator                            — runs scenarios and writes results
+#
+# All containers share the "traceability" bridge network.
+# Results are written to ./results/ on the host via a bind mount.
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  traceability:
+    driver: bridge
+
+services:
+
+  resource_r1:
+    build:
+      context: .
+      dockerfile: resource_node/Dockerfile
+    environment:
+      RESOURCE_ID: r1
+      PORT: "5001"
+      AGENTS: "a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15"
+    ports:
+      - "5001:5001"
+    networks:
+      - traceability
+    restart: unless-stopped
+
+  resource_r2:
+    build:
+      context: .
+      dockerfile: resource_node/Dockerfile
+    environment:
+      RESOURCE_ID: r2
+      PORT: "5002"
+      AGENTS: "a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15"
+    ports:
+      - "5002:5002"
+    networks:
+      - traceability
+    restart: unless-stopped
+
+  resource_r3:
+    build:
+      context: .
+      dockerfile: resource_node/Dockerfile
+    environment:
+      RESOURCE_ID: r3
+      PORT: "5003"
+      AGENTS: "a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15"
+    ports:
+      - "5003:5003"
+    networks:
+      - traceability
+    restart: unless-stopped
+
+  coordinator:
+    build:
+      context: .
+      dockerfile: coordinator/Dockerfile
+    environment:
+      PORT: "6000"
+      RESOURCE_NODES: "r1:resource_r1:5001,r2:resource_r2:5002,r3:resource_r3:5003"
+    ports:
+      - "6000:6000"
+    networks:
+      - traceability
+    depends_on:
+      - resource_r1
+      - resource_r2
+      - resource_r3
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+    environment:
+      R1_HOST: resource_r1
+      R1_PORT: "5001"
+      R2_HOST: resource_r2
+      R2_PORT: "5002"
+      R3_HOST: resource_r3
+      R3_PORT: "5003"
+      COORD_HOST: coordinator
+      COORD_PORT: "6000"
+      OUTPUT_DIR: /results
+      N_REPLICATIONS: "100"
+    volumes:
+      - ./results:/results
+    networks:
+      - traceability
+    depends_on:
+      - coordinator
+      - resource_r1
+      - resource_r2
+      - resource_r3
+    restart: "no"
